@@ -1,21 +1,35 @@
 name: Build AudioC0re - PS2
+
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'source/**'
+      - 'image/**'
+      - 'tools/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/build.yml'
+
 env:
   BUILD_TYPE: Release
+
 jobs:
   build:
     name: Build (PS2)
     runs-on: ubuntu-latest
     container:
       image: ps2dev/ps2dev:latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Install build dependencies
         run: |
           apk update
           apk add make cmake git python3 py3-pillow curl bash binutils
+
       - name: Fetch external single-header libraries
         run: |
           mkdir -p source
@@ -23,6 +37,7 @@ jobs:
           curl -fsSL -o source/stb_image.h      https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
           curl -fsSL -o source/font8x8_basic.h  https://raw.githubusercontent.com/dhepper/font8x8/master/font8x8_basic.h
           ls -la source/
+
       - name: Locate logo file (any image extension)
         id: logo
         run: |
@@ -36,37 +51,45 @@ jobs:
             exit 1
           fi
           echo "path=$LOGO" >> $GITHUB_OUTPUT
+
       - name: Convert logo -> source/logo_data.c
         run: python3 tools/prepare_assets.py "${{ steps.logo.outputs.path }}" source/logo_data.c
+
       - name: Normalize source filenames
         run: |
           if [ -f source/external.impl.c ] && [ ! -f source/external_impl.c ]; then
             mv source/external.impl.c source/external_impl.c
           fi
+
       - name: Configure project
         run: |
           cmake -S . -B build \
                 -DCMAKE_TOOLCHAIN_FILE=$PS2DEV/ps2sdk/ps2dev.cmake \
                 -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
       - name: Build project
         run: cmake --build build
+
       - name: Locate built ELF
         id: elf
         run: |
           ELF=""
-          for cand in build/AudioC0rePS2.elf build/AudioC0rePS2; do
+          for cand in build/AudioC0re build/AudioC0re.elf build/AudioC0rePS2 build/AudioC0rePS2.elf; do
             if [ -f "$cand" ]; then ELF="$cand"; break; fi
           done
           if [ -z "$ELF" ]; then
-            echo "ERROR: Built ELF not found."
+            echo "ERROR: Built ELF not found. Contents of build/:"
+            ls -la build/ || true
             exit 1
           fi
           echo "path=$ELF" >> $GITHUB_OUTPUT
+
       - name: Pack release ELF
         run: |
           SRC="${{ steps.elf.outputs.path }}"
           ps2-packer "$SRC" AUDIOC0RE.ELF || cp "$SRC" AUDIOC0RE.ELF
           echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
+
       - name: Upload AUDIOC0RE.ELF
         uses: actions/upload-artifact@v4
         with:
