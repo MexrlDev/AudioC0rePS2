@@ -42,6 +42,8 @@ add_executable(${PROJECT_NAME}
   source/logo_data.c
 )
 
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "AudioC0re")
+
 target_link_libraries(${PROJECT_NAME}
   ${SDL2_LIBRARIES}
   audsrv
