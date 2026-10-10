@@ -38,7 +38,6 @@ static void present_frame(void) {
     fflush(stdout); \
 } while (0)
 
-/* A single helper that other code uses to react to a vanished source. */
 static void handle_source_gone(void)
 {
     if (log_enabled()) log_disable();
@@ -147,9 +146,6 @@ int main(int argc, char **argv)
             audio_shutdown(); audio_init(); library_scan();
         }
 
-        /* Periodic source-alive check. Every 2 s, if we still have
-           songs loaded but the source is truly gone, force the empty
-           state so the "NO MUSIC SOURCE" screen shows. */
         if ((now - last_src_check) >= 2000 && screen != SCREEN_PLAYER) {
             last_src_check = now;
             if (library_count() > 0 && library_source_gone()) {
